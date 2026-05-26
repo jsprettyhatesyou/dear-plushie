@@ -49,7 +49,6 @@ const SEED_CIRCLES = [
   },
 ];
 
-const SEED_INBOX = [];
 
 // ─── tweak defaults ───
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -99,7 +98,8 @@ function App() {
   const [screen, setScreen] = useState('shelf');
   const [machineId, setMachineId] = useState(null);
   const [openItemId, setOpenItemId] = useState(null);
-  const [inbox, setInbox] = useState(SEED_INBOX);
+  const { inbox, addGift, openGift: markOpened } = useFirebaseInbox();
+  const [localItems, setLocalItems] = useState([]); // temp items (circle wall views)
   const [circles, setCircles] = useState(SEED_CIRCLES);
   const [activeCircleId, setActiveCircleId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -144,7 +144,7 @@ function App() {
 
   const openItem = (id) => {
     setOpenItemId(id);
-    setInbox(arr => arr.map(it => it.id === id ? { ...it, opened: true } : it));
+    if (!localItems.some(i => i.id === id)) markOpened(id);
     setScreen('open');
   };
 
@@ -163,7 +163,7 @@ function App() {
       message: messages[Math.floor(Math.random() * messages.length)],
       when: 'just now', opened: false,
     };
-    setInbox(arr => [newItem, ...arr]);
+    addGift(newItem);
     setMachineId(null);
     setScreen('shelf');
     setToast('caught! kept on your shelf ♡');
@@ -239,7 +239,7 @@ function App() {
   else if (screen === 'arcade')  content = <ArcadeScreen onEnter={(id) => { setMachineId(id); setScreen('machine'); }} />;
   else if (screen === 'machine') content = <MachineScreen machineId={machineId} onBack={() => setScreen('arcade')} onCaught={onCaught} />;
   else if (screen === 'open') {
-    const item = inbox.find(i => i.id === openItemId);
+    const item = [...localItems, ...inbox].find(i => i.id === openItemId);
     content = item ? <OpenScreen item={item} onBack={() => setScreen('shelf')} onReply={() => setScreen('send')} /> : <ShelfScreen inbox={inbox} onOpen={openItem} />;
   }
   else if (screen === 'send')    content = <SendScreen onBack={() => setScreen('shelf')} onSent={onSent} />;
@@ -264,7 +264,7 @@ function App() {
           when: 'just now',
           opened: true,
         };
-        setInbox(arr => [newItem, ...arr]);
+        addGift(newItem);
         setActiveGift(null);
         try { history.replaceState(null, '', window.location.pathname); } catch (e) { window.location.hash = ''; }
         setScreen('shelf');
@@ -279,8 +279,9 @@ function App() {
       circle={c}
       onBack={() => setScreen('circles')}
       onLeavePlushie={() => setScreen('send')}
-      onOpenWallItem={(w) => { /* open as a temp message */
-        setInbox(arr => [{ id: 'w-' + w.id, plushie: w.plushie, from: w.from, message: w.message, when: w.when, opened: true }, ...arr]);
+      onOpenWallItem={(w) => {
+        const wallItem = { id: 'w-' + w.id, plushie: w.plushie, from: w.from, message: w.message, when: w.when, opened: true };
+        setLocalItems(arr => [wallItem, ...arr]);
         setOpenItemId('w-' + w.id);
         setScreen('open');
       }}
@@ -363,7 +364,7 @@ function App() {
         ]}
         onChange={(v) => {
           if (v === 'machine' && !machineId) setMachineId('daily');
-          if (v === 'open' && !openItemId) setOpenItemId(inbox[0].id);
+          if (v === 'open' && !openItemId) setOpenItemId(inbox[0]?.id);
           if (v === 'circle' && !activeCircleId) setActiveCircleId(circles[0]?.id);
           setScreen(v);
         }}

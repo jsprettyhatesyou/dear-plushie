@@ -98,7 +98,8 @@ function App() {
   const [screen, setScreen] = useState('shelf');
   const [machineId, setMachineId] = useState(null);
   const [openItemId, setOpenItemId] = useState(null);
-  const { inbox, addGift, openGift: markOpened } = useFirebaseInbox();
+  const { user, signIn, signOut } = useFirebaseAuth();
+  const { inbox, addGift, openGift: markOpened } = useFirebaseInbox(user?.uid);
   const [localItems, setLocalItems] = useState([]); // temp items (circle wall views)
   const [circles, setCircles] = useState(SEED_CIRCLES);
   const [activeCircleId, setActiveCircleId] = useState(null);
@@ -233,6 +234,14 @@ function App() {
     setTimeout(() => setToast(null), 1800);
   };
 
+  // auth loading / login gate
+  if (user === undefined) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
+      <div style={{ fontFamily: 'Caveat, cursive', fontSize: 22, color: 'var(--ink-soft)' }}>loading softly… 🌸</div>
+    </div>
+  );
+  if (!user) return <LoginScreen onSignIn={signIn} />;
+
   // determine current screen content
   let content;
   if (screen === 'shelf')   content = <ShelfScreen inbox={inbox} onOpen={openItem} />;
@@ -244,7 +253,7 @@ function App() {
   }
   else if (screen === 'send')    content = <SendScreen onBack={() => setScreen('shelf')} onSent={onSent} />;
   else if (screen === 'inbox')   content = <InboxScreen inbox={inbox} onOpen={openItem} />;
-  else if (screen === 'me')      content = <MeScreen inbox={inbox} onOpenCircles={() => setScreen('circles')} circleCount={circles.length} />;
+  else if (screen === 'me')      content = <MeScreen inbox={inbox} user={user} onSignOut={signOut} onOpenCircles={() => setScreen('circles')} circleCount={circles.length} />;
   else if (screen === 'circles') content = <CirclesScreen
     onBack={() => setScreen('me')}
     onJoin={() => setScreen('join')}

@@ -1015,7 +1015,9 @@ function InboxScreen({ inbox, onOpen }) {
 // ───────────────────────────────────────────────────────────
 // ME — profile / cozy stats
 // ───────────────────────────────────────────────────────────
-function MeScreen({ inbox, onOpenCircles, circleCount = 0 }) {
+function MeScreen({ inbox, user, onSignOut, onOpenCircles, circleCount = 0 }) {
+  const displayName = user?.displayName || 'soft friend';
+  const handle = '@' + (user?.email?.split('@')[0] || 'softfriend');
   const total = inbox.length;
   const opened = inbox.filter(i => i.opened).length;
   return (
@@ -1033,8 +1035,8 @@ function MeScreen({ inbox, onOpenCircles, circleCount = 0 }) {
           <Sticker emoji="✨" size={16} rotate={-12} style={{ position:'absolute', top: 14, right: 18 }} />
           <PlushieCapsule plushie={PLUSHIE_BY_ID.bunny} size={72} idle glow />
           <div style={{ flex: 1 }}>
-            <Title size={20}>moony 🌙</Title>
-            <div style={{ fontFamily: 'Inter', fontSize: 12, color: 'var(--ink-soft)' }}>@moony.softboi</div>
+            <Title size={20}>{displayName}</Title>
+            <div style={{ fontFamily: 'Inter', fontSize: 12, color: 'var(--ink-soft)' }}>{handle}</div>
             <div style={{
               marginTop: 8, fontFamily: 'Caveat', fontSize: 16, color: 'var(--plush-deep)',
             }}>"keeper of tiny feelings"</div>
@@ -1108,6 +1110,16 @@ function MeScreen({ inbox, onOpenCircles, circleCount = 0 }) {
             </div>
           ))}
         </div>
+
+        {/* sign out */}
+        <button onClick={onSignOut} style={{
+          background: 'none', border: '1.5px solid var(--milk)',
+          borderRadius: 100, padding: '10px 22px',
+          fontFamily: 'var(--font-body, Inter)', fontSize: 13, color: 'var(--ink-soft)',
+          cursor: 'pointer', alignSelf: 'center',
+        }}>
+          sign out softly ♡
+        </button>
       </div>
     </div>
   );
@@ -1841,8 +1853,79 @@ function GiftArcadeScreen({ gift, onKept }) {
   );
 }
 
+// ───────────────────────────────────────────────────────────
+// LOGIN SCREEN
+// ───────────────────────────────────────────────────────────
+function LoginScreen({ onSignIn }) {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState(null);
+
+  const handle = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await onSignIn();
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') {
+        setErr('something went soft · try again?');
+      }
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', minHeight: '100dvh', padding: '40px 24px',
+      gap: 28, textAlign: 'center',
+      background: 'radial-gradient(circle at 30% 20%, #FCE9EE 0%, transparent 50%), radial-gradient(circle at 70% 80%, #F3E6F7 0%, transparent 50%), #FFF4EE',
+    }}>
+      <div style={{ fontSize: 80 }}>🧸</div>
+
+      <div>
+        <div style={{ fontFamily: 'var(--font-heading, Fredoka)', fontSize: 36, fontWeight: 700, color: 'var(--ink, #4A3B36)', marginBottom: 6 }}>
+          dear plushie
+        </div>
+        <div style={{ fontFamily: 'Caveat, cursive', fontSize: 20, color: 'var(--ink-soft, #7B675F)' }}>
+          a tiny feeling, kept just for you ♡
+        </div>
+      </div>
+
+      <button
+        onClick={handle}
+        disabled={busy}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: '#fff', border: '1.5px solid #E8D9CF',
+          borderRadius: 100, padding: '13px 26px',
+          fontFamily: 'var(--font-body, Inter)', fontSize: 15, fontWeight: 500,
+          color: '#4A3B36', cursor: busy ? 'wait' : 'pointer',
+          boxShadow: '0 4px 16px rgba(198,156,132,0.18)',
+          opacity: busy ? 0.7 : 1, transition: 'opacity 0.2s',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.706 17.64 9.2z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        {busy ? 'signing in…' : 'sign in with Google'}
+      </button>
+
+      {err && (
+        <div style={{ fontFamily: 'var(--font-body, Inter)', fontSize: 13, color: '#7B675F' }}>{err}</div>
+      )}
+
+      <div style={{ fontFamily: 'Caveat, cursive', fontSize: 15, color: '#B49E94' }}>
+        your shelf · your inbox · kept safely
+      </div>
+    </div>
+  );
+}
+
 // expose
 Object.assign(window, {
   ShelfScreen, ArcadeScreen, MachineScreen, OpenScreen, SendScreen, InboxScreen, MeScreen,
-  CirclesScreen, JoinCodeScreen, CircleScreen, GiftArcadeScreen,
+  CirclesScreen, JoinCodeScreen, CircleScreen, GiftArcadeScreen, LoginScreen,
 });

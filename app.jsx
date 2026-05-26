@@ -56,12 +56,14 @@ function App() {
   const [localItems, setLocalItems] = useState([]);
   const [toast, setToast] = useState(null);
   const [sendToFriend, setSendToFriend] = useState(null); // { uid, displayName, username }
+  const [currentCircleId, setCurrentCircleId] = useState(null);
 
   // ── Firebase hooks ──
   const { user, signIn, signOut } = useFirebaseAuth();
   const { profile, createProfile } = useProfile(user?.uid);
   const { friends, addFriend } = useFriends(user?.uid);
   const { inbox, addGift, openGift: markOpened } = useFirebaseInbox(user?.uid);
+  const { circles, createCircle, addCircleToState } = useCircles(user?.uid);
 
   // ── Gift link / #to= detection ──
   const [activeGift, setActiveGift] = useState(() => decodeGift(typeof window !== 'undefined' ? window.location.hash : ''));
@@ -170,16 +172,18 @@ function App() {
 
   // ── Screen routing ──
   const captions = {
-    shelf:   '01 · your collected plushies',
-    arcade:  '02 · pick a claw machine',
-    machine: '03 · drop the claw gently',
-    open:    '04 · open the envelope',
-    send:    '05 · send a tiny secret',
-    inbox:   '06 · all your unopened feelings',
-    me:      '07 · cozy profile',
-    circles: '08 · cozy circles · add friends',
-    join:    '09 · find a friend by code',
-    circle:  '10 · a shared shelf',
+    shelf:        '01 · your collected plushies',
+    arcade:       '02 · pick a claw machine',
+    machine:      '03 · drop the claw gently',
+    open:         '04 · open the envelope',
+    send:         '05 · send a tiny secret',
+    inbox:        '06 · all your unopened feelings',
+    me:           '07 · cozy profile',
+    circles:      '08 · cozy circles · shared worlds',
+    createCircle: '09 · create a new circle',
+    joinCircle:   '10 · join a circle',
+    circle:       '11 · inside a cozy circle',
+    join:         '12 · find a friend by shelf code',
   };
 
   let content;
@@ -208,16 +212,47 @@ function App() {
       profile={profile}
       onSignOut={signOut}
       onOpenCircles={() => setScreen('circles')}
-      circleCount={friends.length}
+      circleCount={(circles || []).length}
     />
   );
   else if (screen === 'circles') content = (
-    <CirclesScreen
+    <MyCirclesScreen
+      circles={circles}
       onBack={() => setScreen('me')}
-      myShelfCode={profile?.shelfCode || ''}
-      friends={friends}
-      onJoinCode={() => setScreen('join')}
-      onSendToFriend={(f) => { setSendToFriend(f); setScreen('send'); }}
+      onOpenCircle={(id) => { setCurrentCircleId(id); setScreen('circle'); }}
+      onCreateCircle={() => setScreen('createCircle')}
+      onJoinCircle={() => setScreen('joinCircle')}
+    />
+  );
+  else if (screen === 'createCircle') content = (
+    <CreateCircleScreen
+      onBack={() => setScreen('circles')}
+      onCreated={async (data) => {
+        const circle = await createCircle(data);
+        setCurrentCircleId(circle.id);
+        showToast(`${circle.name} is live 🧸`);
+        setScreen('circle');
+      }}
+    />
+  );
+  else if (screen === 'joinCircle') content = (
+    <JoinCircleScreen
+      onBack={() => setScreen('circles')}
+      myUid={user.uid}
+      onJoined={(circle) => {
+        addCircleToState(circle);
+        setCurrentCircleId(circle.id);
+        showToast(`welcome to ${circle.name} 🧸`);
+        setScreen('circle');
+      }}
+    />
+  );
+  else if (screen === 'circle') content = (
+    <CircleRoomScreen
+      circleId={currentCircleId}
+      myUid={user.uid}
+      myProfile={profile}
+      onBack={() => setScreen('circles')}
     />
   );
   else if (screen === 'join') content = (
@@ -252,10 +287,10 @@ function App() {
                   : screen === 'open'    ? 'shelf'
                   : screen === 'machine' ? 'arcade'
                   : screen === 'send'    ? 'send'
-                  : ['circles','join','circle'].includes(screen) ? 'me'
+                  : ['circles','createCircle','joinCircle','circle','join'].includes(screen) ? 'me'
                   : 'shelf';
 
-  const tabVisible = !['machine', 'send', 'open', 'join', 'gift'].includes(screen);
+  const tabVisible = !['machine','send','open','join','gift','createCircle','joinCircle','circle'].includes(screen);
 
   const tweaksUI = (
     <TweaksPanel title="Tweaks">
@@ -307,15 +342,17 @@ function App() {
         label="Screen"
         value={screen}
         options={[
-          { value: 'shelf',   label: 'Shelf (home)' },
-          { value: 'arcade',  label: 'Arcade list' },
-          { value: 'machine', label: 'Claw machine' },
-          { value: 'send',    label: 'Send a plushie' },
-          { value: 'open',    label: 'Open a message' },
-          { value: 'inbox',   label: 'Inbox' },
-          { value: 'me',      label: 'You / profile' },
-          { value: 'circles', label: 'Cozy circles' },
-          { value: 'join',    label: 'Add friend' },
+          { value: 'shelf',        label: 'Shelf (home)' },
+          { value: 'arcade',       label: 'Arcade list' },
+          { value: 'machine',      label: 'Claw machine' },
+          { value: 'send',         label: 'Send a plushie' },
+          { value: 'open',         label: 'Open a message' },
+          { value: 'inbox',        label: 'Inbox' },
+          { value: 'me',           label: 'You / profile' },
+          { value: 'circles',      label: 'My circles' },
+          { value: 'createCircle', label: 'Create circle' },
+          { value: 'joinCircle',   label: 'Join circle' },
+          { value: 'circle',       label: 'Circle room' },
         ]}
         onChange={(v) => {
           if (v === 'machine' && !machineId) setMachineId('daily');

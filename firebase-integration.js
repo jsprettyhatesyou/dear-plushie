@@ -116,7 +116,65 @@ function useFirebaseInbox(userId) {
   return { inbox, loading, error, addGift, openGift, removeGift };
 }
 
+// ── Circles ───────────────────────────────────────────
+function useCircles(uid) {
+  const [circles, setCircles] = React.useState(undefined);
+
+  React.useEffect(() => {
+    if (!uid) { setCircles([]); return; }
+    window.firebaseDB.getCirclesForUser(uid).then(setCircles).catch(() => setCircles([]));
+  }, [uid]);
+
+  const createCircle = React.useCallback(async ({ name, theme }) => {
+    const circle = await window.firebaseDB.createCircle(uid, { name, theme });
+    setCircles(prev => [circle, ...(prev || [])]);
+    return circle;
+  }, [uid]);
+
+  const joinCircle = React.useCallback(async (inviteCode) => {
+    const circle = await window.firebaseDB.joinCircle(uid, inviteCode);
+    setCircles(prev => [...(prev || []), circle]);
+    return circle;
+  }, [uid]);
+
+  const addCircleToState = React.useCallback((circle) => {
+    setCircles(prev => [...(prev || []).filter(c => c.id !== circle.id), circle]);
+  }, []);
+
+  return { circles, createCircle, joinCircle, addCircleToState };
+}
+
+function useCircleRoom(circleId, uid) {
+  const [circle, setCircle] = React.useState(undefined);
+  const [shelf, setShelf] = React.useState([]);
+  const [notes, setNotes] = React.useState([]);
+
+  React.useEffect(() => {
+    if (!circleId) return;
+    window.firebaseDB.getCircle(circleId).then(setCircle);
+    const unsubShelf = window.firebaseDB.subscribeToCircleShelf(circleId, setShelf);
+    const unsubNotes = window.firebaseDB.subscribeToCircleNotes(circleId, setNotes);
+    return () => { unsubShelf(); unsubNotes(); };
+  }, [circleId]);
+
+  const sendPlushie = React.useCallback(async ({ plushie, message, displayName, anonymous }) => {
+    return window.firebaseDB.sendToCircleShelf(circleId, { plushie, message, fromUid: uid, displayName, anonymous });
+  }, [circleId, uid]);
+
+  const react = React.useCallback((itemId, emoji) => {
+    return window.firebaseDB.reactToCircleShelfItem(circleId, itemId, emoji, uid);
+  }, [circleId, uid]);
+
+  const leaveNote = React.useCallback((text) => {
+    return window.firebaseDB.leaveCircleNote(circleId, text, uid);
+  }, [circleId, uid]);
+
+  return { circle, shelf, notes, sendPlushie, react, leaveNote };
+}
+
 window.useFirebaseAuth  = useFirebaseAuth;
 window.useProfile       = useProfile;
 window.useFriends       = useFriends;
 window.useFirebaseInbox = useFirebaseInbox;
+window.useCircles       = useCircles;
+window.useCircleRoom    = useCircleRoom;

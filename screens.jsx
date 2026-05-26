@@ -1,5 +1,13 @@
 // screens.jsx — all screens for dear plushie!
 
+const CIRCLE_THEMES = {
+  rose:     { bg: 'linear-gradient(160deg,#FFE6EE 0%,#FFF0F3 100%)', accent:'#F2A5BA', text:'#D98AA1', dot:'#FFB3C8', emoji:'🌸', label:'rose garden' },
+  lavender: { bg: 'linear-gradient(160deg,#EDE8FF 0%,#F8F5FF 100%)', accent:'#C8B8E8', text:'#9B7FD4', dot:'#D4C7F0', emoji:'💜', label:'lavender dream' },
+  mint:     { bg: 'linear-gradient(160deg,#E4F8EE 0%,#F2FFF7 100%)', accent:'#B8E8C8', text:'#7FAF8F', dot:'#A8D8B8', emoji:'🌿', label:'mint meadow' },
+  peach:    { bg: 'linear-gradient(160deg,#FFF0E4 0%,#FFF8F2 100%)', accent:'#FFD0A0', text:'#C4804E', dot:'#FFBF88', emoji:'🍑', label:'peach cloud' },
+  night:    { bg: 'linear-gradient(160deg,#1E1538 0%,#2E2060 100%)', accent:'#9B7FE8', text:'#C8B4F8', dot:'#7B5FC8', emoji:'🌙', label:'night sky' },
+};
+
 // ───────────────────────────────────────────────────────────
 // SHELF — your collected plushies displayed on cozy shelves
 // ───────────────────────────────────────────────────────────
@@ -1142,150 +1150,321 @@ function MeScreen({ inbox, user, profile, onSignOut, onOpenCircles, circleCount 
 }
 
 // ───────────────────────────────────────────────────────────
-// CIRCLES — shelf code + real friends list
+// MY CIRCLES — list of cozy circle worlds
 // ───────────────────────────────────────────────────────────
-function CirclesScreen({ onBack, myShelfCode, friends, onJoinCode, onSendToFriend }) {
-  const [copied, setCopied] = React.useState(false);
-  const avatarColors = ['#FFE6EE','#F3E6F7','#FFD6C2','#E8D9CF','#C7DDB7'];
+function MyCirclesScreen({ onBack, circles, onOpenCircle, onCreateCircle, onJoinCircle }) {
+  const loading = circles === undefined;
+  return (
+    <div style={{ padding: '0 0 120px', minHeight: '100%' }}>
+      <TopBar
+        title="cozy circles"
+        subtitle="your shared plushie worlds"
+        left={<RoundBtn onClick={onBack}>‹</RoundBtn>}
+      />
 
-  const handleCopy = async () => {
-    try { await navigator.clipboard.writeText(myShelfCode); } catch (e) {}
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+      {/* CTA row */}
+      <div style={{ padding: '4px 16px 18px', display: 'flex', gap: 10 }}>
+        <button onClick={onCreateCircle} style={{
+          flex: 1, padding: '16px 10px',
+          background: 'linear-gradient(160deg,#F2A5BA 0%,#D98AA1 100%)',
+          border: 'none', borderRadius: 22, cursor: 'pointer',
+          color: '#fff', fontFamily: 'Fredoka', fontWeight: 700, fontSize: 15,
+          boxShadow: '0 6px 18px rgba(217,138,161,0.4)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+        }}>
+          <span style={{ fontSize: 26 }}>✦</span>
+          create a circle
+        </button>
+        <button onClick={onJoinCircle} style={{
+          flex: 1, padding: '16px 10px',
+          background: 'rgba(255,255,255,0.72)',
+          border: '2px dashed rgba(217,138,161,0.38)',
+          borderRadius: 22, cursor: 'pointer',
+          color: 'var(--ink)', fontFamily: 'Fredoka', fontWeight: 700, fontSize: 15,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+        }}>
+          <span style={{ fontSize: 26 }}>🔑</span>
+          join a circle
+        </button>
+      </div>
+
+      {/* circles list */}
+      <div style={{ padding: '0 16px' }}>
+        <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:13, color:'var(--ink-soft)', padding:'0 6px 10px', letterSpacing:'0.04em' }}>
+          ✿ your circles
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign:'center', padding:40, fontFamily:'Caveat', fontSize:18, color:'var(--ink-soft)' }}>
+            gathering your circles… 🌸
+          </div>
+        ) : circles.length === 0 ? (
+          <div style={{
+            background:'rgba(255,255,255,0.5)', border:'2px dashed rgba(74,59,54,0.12)',
+            borderRadius:24, padding:'36px 20px', textAlign:'center',
+          }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>🪴</div>
+            <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:18, color:'var(--ink)', marginBottom:6 }}>
+              no circles yet
+            </div>
+            <div style={{ fontFamily:'Caveat', fontSize:16, color:'var(--ink-soft)', lineHeight:1.5 }}>
+              create one to share plushies<br />with your close people
+            </div>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {circles.map(circle => {
+              const t = CIRCLE_THEMES[circle.theme] || CIRCLE_THEMES.rose;
+              const memberCount = (circle.memberUids || []).length;
+              return (
+                <button key={circle.id} onClick={() => onOpenCircle(circle.id)} style={{
+                  width:'100%', textAlign:'left', background: t.bg,
+                  borderRadius:24, padding:'16px 18px',
+                  border:'1px solid rgba(255,255,255,0.7)',
+                  boxShadow:'var(--shadow-card)', cursor:'pointer',
+                  position:'relative', overflow:'hidden',
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                    <div style={{
+                      width:52, height:52, borderRadius:26, flexShrink:0,
+                      background:'#fff', fontSize:26,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      boxShadow:`0 4px 12px ${t.accent}55`,
+                    }}>{t.emoji}</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:17, color: t.text === '#C8B4F8' ? t.text : 'var(--ink)' }}>
+                        {circle.name}
+                      </div>
+                      <div style={{ fontFamily:'Inter', fontSize:12, color:'var(--ink-soft)', marginTop:2 }}>
+                        {memberCount} {memberCount === 1 ? 'keeper' : 'keepers'} · {t.label}
+                      </div>
+                    </div>
+                    <span style={{ color: t.text, fontSize:20 }}>›</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// CREATE CIRCLE — name + theme picker
+// ───────────────────────────────────────────────────────────
+function CreateCircleScreen({ onBack, onCreated }) {
+  const [name, setName] = React.useState('');
+  const [theme, setTheme] = React.useState('rose');
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const canCreate = name.trim().length >= 2 && name.trim().length <= 32;
+  const t = CIRCLE_THEMES[theme];
+
+  const handleCreate = async () => {
+    if (!canCreate || creating) return;
+    setCreating(true); setError('');
+    try { await onCreated({ name: name.trim(), theme }); }
+    catch (e) { setError('something went soft · try again'); setCreating(false); }
   };
 
-  const handleShare = async () => {
-    const text = `add me on dear plushie! my shelf code is ${myShelfCode} 🧸`;
-    if (navigator.share) {
-      try { await navigator.share({ title: 'dear plushie!', text }); } catch (e) {}
-    } else {
-      handleCopy();
+  return (
+    <div style={{ padding: '0 0 120px', minHeight: '100%' }}>
+      <TopBar title="new circle" subtitle="create a shared plushie world" left={<RoundBtn onClick={onBack}>‹</RoundBtn>} />
+      <div style={{ padding: '12px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+
+        <div className="float-soft" style={{
+          width: 92, height: 92, borderRadius: 46,
+          background: t.bg, fontSize: 42,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 10px 28px ${t.accent}55`,
+          border: '2px solid rgba(255,255,255,0.8)', transition: 'all 0.35s ease',
+        }}>{t.emoji}</div>
+
+        {/* name */}
+        <div style={{ width: '100%' }}>
+          <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:13, color:'var(--ink-soft)', marginBottom:8, letterSpacing:'0.04em' }}>
+            circle name
+          </div>
+          <input
+            value={name} onChange={e => setName(e.target.value)}
+            placeholder="softgirl club, cottagecore crew…"
+            maxLength={32}
+            style={{
+              width:'100%', padding:'14px 16px',
+              background:'#fff', border:'2px solid rgba(217,138,161,0.25)',
+              borderRadius:16, fontFamily:'Fredoka', fontWeight:500, fontSize:17,
+              color:'var(--ink)', outline:'none',
+              boxShadow:'0 2px 8px rgba(198,156,132,0.1)',
+            }}
+          />
+          <div style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-faint)', marginTop:4, textAlign:'right' }}>{name.length}/32</div>
+        </div>
+
+        {/* theme picker */}
+        <div style={{ width: '100%' }}>
+          <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:13, color:'var(--ink-soft)', marginBottom:10, letterSpacing:'0.04em' }}>
+            room vibe
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            {Object.entries(CIRCLE_THEMES).map(([key, ct]) => (
+              <button key={key} onClick={() => setTheme(key)} style={{
+                flex:1, padding:'10px 4px',
+                background: ct.bg,
+                border: `2px solid ${theme === key ? ct.text : 'rgba(255,255,255,0.5)'}`,
+                borderRadius:16, cursor:'pointer',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+                boxShadow: theme === key ? `0 4px 14px ${ct.accent}55` : '0 2px 6px rgba(198,156,132,0.1)',
+                transition:'all 0.2s',
+              }}>
+                <span style={{ fontSize:20 }}>{ct.emoji}</span>
+                <span style={{ fontFamily:'Inter', fontSize:9, color: ct.text, fontWeight:700 }}>{key}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <div style={{ fontFamily:'Caveat', fontSize:16, color:'#D98AA1' }}>{error}</div>}
+
+        <div style={{ width:'100%' }}>
+          <PlushButton variant="pink" size="lg" full disabled={!canCreate || creating} onClick={handleCreate}>
+            {creating ? 'creating your world…' : `create ${t.emoji} ${name.trim() || 'your circle'}`}
+          </PlushButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// JOIN CIRCLE — enter invite code
+// ───────────────────────────────────────────────────────────
+function JoinCircleScreen({ onBack, myUid, onJoined }) {
+  const [code, setCode] = React.useState(['','','','','','']);
+  const [status, setStatus] = React.useState('idle');
+  const [foundCircle, setFoundCircle] = React.useState(null);
+  const [errorMsg, setErrorMsg] = React.useState('');
+  const [joining, setJoining] = React.useState(false);
+  const inputRef = React.useRef(null);
+  const value = code.join('');
+  const filled = value.length === 6;
+
+  React.useEffect(() => { setTimeout(() => inputRef.current?.focus(), 200); }, []);
+
+  const updateChar = (v) => {
+    const clean = v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const arr = ['','','','','',''];
+    for (let i = 0; i < clean.length; i++) arr[i] = clean[i];
+    setCode(arr); setStatus('idle'); setFoundCircle(null); setErrorMsg('');
+  };
+
+  const search = async () => {
+    if (!filled || status === 'searching') return;
+    setStatus('searching'); setFoundCircle(null); setErrorMsg('');
+    try {
+      const circle = await window.firebaseDB.getCircleByInviteCode(value);
+      if (!circle) { setStatus('error'); setErrorMsg('no circle found with this code'); return; }
+      if ((circle.memberUids || []).includes(myUid)) { setStatus('error'); setErrorMsg("you're already inside this circle ♡"); return; }
+      setFoundCircle(circle); setStatus('found');
+    } catch (e) { setStatus('error'); setErrorMsg('something went soft · try again'); }
+  };
+
+  const confirmJoin = async () => {
+    if (!foundCircle || joining) return;
+    setJoining(true);
+    try {
+      await window.firebaseDB.joinCircle(myUid, value);
+      setStatus('joined');
+      setTimeout(() => onJoined(foundCircle), 1400);
+    } catch (e) {
+      setStatus('error');
+      setErrorMsg(e.message === 'already a member' ? "you're already inside this circle ♡" : 'something went soft · try again');
+      setJoining(false);
     }
   };
 
   return (
     <div style={{ padding: '0 0 120px', minHeight: '100%' }}>
-      <TopBar
-        title="cozy circles"
-        subtitle="add friends with shelf codes"
-        left={<RoundBtn onClick={onBack}>‹</RoundBtn>}
-        right={<RoundBtn onClick={onJoinCode}>＋</RoundBtn>}
-      />
+      <TopBar title="join a circle" subtitle="enter the 6-letter invite code" left={<RoundBtn onClick={onBack}>‹</RoundBtn>} />
+      <div style={{ padding:'8px 24px', display:'flex', flexDirection:'column', alignItems:'center', gap:18 }}>
 
-      {/* my shelf code card */}
-      <div style={{ padding: '4px 20px 14px' }}>
-        <div style={{
-          background: 'linear-gradient(160deg, #FFE6EE 0%, #F3E6F7 100%)',
-          borderRadius: 26, padding: '18px 18px 16px',
-          boxShadow: 'var(--shadow-card)', border: '1px solid rgba(255,255,255,0.7)',
-          position: 'relative', overflow: 'hidden', textAlign: 'center',
-        }}>
-          <Sticker emoji="✨" size={16} rotate={-12} style={{ position:'absolute', top:12, left:16 }} />
-          <Sticker emoji="🎀" size={16} rotate={20} style={{ position:'absolute', top:14, right:18 }} />
-          <div style={{ fontFamily:'Caveat', fontSize:18, color:'var(--ink-soft)' }}>your shelf code</div>
-          <div style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-faint)', marginBottom:10 }}>
-            give it to friends so they can find your shelf
-          </div>
-          <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:14 }}>
-            {(myShelfCode || '??????').split('').map((ch, i) => (
-              <div key={i} style={{
-                width:38, height:46, borderRadius:12, background:'#fff',
-                border:'1.5px solid rgba(217,138,161,0.25)',
-                boxShadow:'0 2px 6px rgba(198,156,132,0.15)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontFamily:'Fredoka', fontWeight:700, fontSize:22,
-                color:'var(--plush-deep)', letterSpacing:'0.05em',
-              }}>{ch}</div>
-            ))}
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <PlushButton variant="cream" full size="sm" onClick={handleCopy}>
-              {copied ? 'copied ♡' : 'copy ⋮'}
-            </PlushButton>
-            <PlushButton variant="pink" full size="sm" onClick={handleShare}>share ♡</PlushButton>
-          </div>
+        <div className="float-soft" style={{
+          width:88, height:88, borderRadius:44,
+          background:'linear-gradient(160deg,#F3E6F7 0%,#E6EEFF 100%)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:40, boxShadow:'0 8px 24px rgba(168,130,214,0.25)',
+          border:'2px solid rgba(255,255,255,0.8)',
+        }}>🔑</div>
+
+        <div style={{ textAlign:'center' }}>
+          <Title size={22}>find your circle</Title>
+          <div style={{ fontFamily:'Caveat', fontSize:17, color:'var(--ink-soft)', marginTop:4 }}>ask a friend for their invite code</div>
         </div>
-      </div>
 
-      {/* add friend button */}
-      <div style={{ padding:'0 20px 18px' }}>
-        <button onClick={onJoinCode} style={{
-          width:'100%', display:'flex', alignItems:'center', gap:14,
-          padding:'14px 16px', background:'rgba(255,255,255,0.65)',
-          border:'2px dashed rgba(217,138,161,0.35)',
-          borderRadius:20, cursor:'pointer', textAlign:'left',
-        }}>
-          <div style={{
-            width:44, height:44, borderRadius:22,
-            background:'linear-gradient(160deg, #F2A5BA 0%, #D98AA1 100%)',
-            color:'#fff', fontSize:22,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 4px 10px rgba(217,138,161,0.4)',
-          }}>✎</div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:15, color:'var(--ink)' }}>
-              join with a code
-            </div>
-            <div style={{ fontFamily:'Inter', fontSize:12, color:'var(--ink-soft)' }}>
-              enter 6 tiny letters from a friend
-            </div>
-          </div>
-          <span style={{ color:'var(--plush-deep)', fontSize:22 }}>›</span>
-        </button>
-      </div>
-
-      {/* friends list */}
-      <div style={{ padding:'0 16px' }}>
-        <div style={{
-          fontFamily:'Fredoka', fontWeight:600, fontSize:13,
-          color:'var(--ink-soft)', padding:'0 6px 8px',
-          letterSpacing:'0.04em',
-        }}>✿ your circles</div>
-
-        {friends.length === 0 ? (
-          <div style={{
-            background:'rgba(255,255,255,0.5)', border:'2px dashed rgba(74,59,54,0.12)',
-            borderRadius:20, padding:'28px 18px', textAlign:'center',
-          }}>
-            <div style={{ fontSize:32, marginBottom:8 }}>🪴</div>
-            <div style={{ fontFamily:'Caveat', fontSize:18, color:'var(--ink-soft)' }}>
-              no friends yet · add one with a shelf code
-            </div>
-          </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {friends.map((f, idx) => (
-              <div key={f.uid || idx} style={{
-                background:'rgba(255,255,255,0.75)', borderRadius:22, padding:'14px 16px',
-                display:'flex', alignItems:'center', gap:14,
-                border:'1px solid rgba(255,255,255,0.7)', boxShadow:'var(--shadow-card)',
+        <div onClick={() => inputRef.current?.focus()} style={{ display:'flex', gap:8, cursor:'text' }}>
+          {code.map((ch, i) => {
+            const focused = !ch && i === value.length;
+            const isErr = status === 'error', isGood = status === 'found' || status === 'joined';
+            return (
+              <div key={i} style={{
+                width:42, height:54, borderRadius:14,
+                background: ch ? '#fff' : 'rgba(255,255,255,0.6)',
+                border:`2px solid ${isErr ? '#D98AA1' : isGood ? '#7FAF7F' : focused ? '#C8B8E8' : ch ? 'rgba(200,184,232,0.5)' : 'rgba(200,184,232,0.25)'}`,
+                boxShadow: focused ? '0 0 0 4px rgba(200,184,232,0.2)' : '0 2px 6px rgba(198,156,132,0.1)',
+                display:'flex', alignItems:'center', justifyContent:'center', position:'relative',
+                fontFamily:'Fredoka', fontWeight:700, fontSize:26, color:'var(--plush-deep)',
+                transition:'all 0.2s',
               }}>
-                <div style={{
-                  width:52, height:52, borderRadius:26, flexShrink:0,
-                  background: avatarColors[(f.displayName || '?').charCodeAt(0) % avatarColors.length],
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontFamily:'Fredoka', fontWeight:700, fontSize:22, color:'var(--plush-deep)',
-                  boxShadow:'0 2px 6px rgba(198,156,132,0.18)',
-                }}>
-                  {(f.displayName || '?').charAt(0).toUpperCase()}
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:16, color:'var(--ink)' }}>
-                    {f.displayName}
-                  </div>
-                  <div style={{ fontFamily:'Inter', fontSize:12, color:'var(--ink-soft)', marginTop:1 }}>
-                    @{f.username}
-                  </div>
-                </div>
-                <button onClick={() => onSendToFriend(f)} style={{
-                  height:36, padding:'0 14px', borderRadius:18,
-                  background:'linear-gradient(160deg, #F2A5BA 0%, #D98AA1 100%)',
-                  border:'none', color:'#fff',
-                  fontFamily:'Fredoka', fontWeight:600, fontSize:13,
-                  cursor:'pointer', boxShadow:'0 4px 10px rgba(217,138,161,0.35)',
-                }}>send ♡</button>
+                {ch}
+                {focused && <div style={{ position:'absolute', width:2, height:24, background:'#C8B8E8', borderRadius:1 }} />}
               </div>
-            ))}
+            );
+          })}
+        </div>
+        <input ref={inputRef} value={value} onChange={e => updateChar(e.target.value)}
+          maxLength={6} autoCapitalize="characters" autoComplete="off"
+          style={{ position:'absolute', left:-9999, opacity:0, width:1, height:1 }} />
+
+        {status === 'searching' && <div style={{ fontFamily:'Caveat', fontSize:18, color:'var(--ink-soft)' }}>searching gently… 🌸</div>}
+        {status === 'error'     && <div className="fade-in" style={{ fontFamily:'Caveat', fontSize:17, color:'#D98AA1', textAlign:'center' }}>{errorMsg}</div>}
+        {status === 'joined'    && foundCircle && (
+          <div className="fade-in pop-in" style={{ fontFamily:'Caveat', fontSize:18, color:'#7FAF7F', textAlign:'center' }}>
+            welcome to {foundCircle.name}! 🧸✨
+          </div>
+        )}
+
+        {(status === 'found' || status === 'joined') && foundCircle && (() => {
+          const t = CIRCLE_THEMES[foundCircle.theme] || CIRCLE_THEMES.rose;
+          const mc = (foundCircle.memberUids || []).length;
+          return (
+            <div className="fade-in pop-in" style={{
+              width:'100%', borderRadius:22, padding:'16px 18px',
+              background: t.bg, boxShadow:'var(--shadow-card)',
+              border:'1px solid rgba(255,255,255,0.7)',
+              display:'flex', alignItems:'center', gap:14,
+            }}>
+              <div style={{ width:52, height:52, borderRadius:26, flexShrink:0, background:'#fff', fontSize:26, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 4px 10px ${t.accent}50` }}>{t.emoji}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:17, color:'var(--ink)' }}>{foundCircle.name}</div>
+                <div style={{ fontFamily:'Inter', fontSize:12, color:'var(--ink-soft)', marginTop:2 }}>{mc} {mc === 1 ? 'keeper' : 'keepers'} already inside</div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {status === 'found' && (
+          <div style={{ width:'100%' }}>
+            <PlushButton variant="pink" size="lg" full disabled={joining} onClick={confirmJoin}>
+              {joining ? 'joining…' : `join ${foundCircle.name} ♡`}
+            </PlushButton>
+          </div>
+        )}
+        {(status === 'idle' || status === 'error') && (
+          <div style={{ width:'100%', marginTop:4 }}>
+            <PlushButton variant="pink" size="lg" full disabled={!filled || status === 'searching'} onClick={search}>
+              find circle ♡
+            </PlushButton>
           </div>
         )}
       </div>
@@ -1491,8 +1670,348 @@ function JoinCodeScreen({ onBack, myUid, onAddFriend }) {
 }
 
 // ───────────────────────────────────────────────────────────
-// CIRCLE — a shared shelf for a joined circle
+// CIRCLE SEND PLUSHIE SHEET — bottom sheet picker
 // ───────────────────────────────────────────────────────────
+function CircleSendPlushieSheet({ circleId, circleName, myUid, myDisplayName, theme, onSent, onCancel }) {
+  const [step, setStep] = React.useState('pick');
+  const [selectedPlushie, setSelectedPlushie] = React.useState(null);
+  const [message, setMessage] = React.useState('');
+  const [anonymous, setAnonymous] = React.useState(false);
+  const [sending, setSending] = React.useState(false);
+
+  const handleSend = async () => {
+    if (!selectedPlushie || sending) return;
+    setSending(true);
+    try {
+      await window.firebaseDB.sendToCircleShelf(circleId, {
+        plushie: selectedPlushie.id, message: message.trim(),
+        fromUid: myUid, displayName: myDisplayName, anonymous,
+      });
+      onSent();
+    } catch (e) { setSending(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(74,59,54,0.42)', display:'flex', alignItems:'flex-end' }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width:'100%', background:'#fff', borderRadius:'28px 28px 0 0',
+        padding:'20px 20px 44px', boxShadow:'0 -8px 32px rgba(74,59,54,0.15)',
+        maxHeight:'82vh', overflow:'auto',
+      }}>
+        <div style={{ width:40, height:4, borderRadius:2, background:'rgba(74,59,54,0.13)', margin:'0 auto 18px' }} />
+
+        {step === 'pick' ? (
+          <>
+            <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:18, color:'var(--ink)', marginBottom:4 }}>pick a plushie 🧸</div>
+            <div style={{ fontFamily:'Caveat', fontSize:15, color:'var(--ink-soft)', marginBottom:16 }}>for everyone in {circleName}</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:8, marginBottom:18 }}>
+              {PLUSHIES.map(p => (
+                <button key={p.id} onClick={() => setSelectedPlushie(p)} style={{
+                  padding:'10px 6px', borderRadius:14,
+                  background: selectedPlushie?.id === p.id ? `${theme.accent}28` : 'rgba(255,255,255,0.7)',
+                  border:`2px solid ${selectedPlushie?.id === p.id ? theme.accent : 'rgba(217,138,161,0.15)'}`,
+                  cursor:'pointer', textAlign:'center',
+                  boxShadow: selectedPlushie?.id === p.id ? `0 4px 12px ${theme.accent}45` : '0 2px 6px rgba(198,156,132,0.1)',
+                  transition:'all 0.18s',
+                }}>
+                  <PlushieCapsule plushie={p} size={36} idle={false} />
+                  <div style={{ fontFamily:'Inter', fontSize:9, color:'var(--ink-faint)', marginTop:3 }}>{p.name.split(' ')[0]}</div>
+                </button>
+              ))}
+            </div>
+            <PlushButton variant="pink" full size="lg" disabled={!selectedPlushie} onClick={() => setStep('write')}>next ›</PlushButton>
+          </>
+        ) : (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <button onClick={() => setStep('pick')} style={{ width:32, height:32, borderRadius:16, background:'rgba(217,138,161,0.12)', border:'none', cursor:'pointer', fontSize:18, color:'var(--plush-deep)' }}>‹</button>
+              <div>
+                <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:17, color:'var(--ink)' }}>add a message</div>
+                <div style={{ fontFamily:'Caveat', fontSize:14, color:'var(--ink-soft)' }}>optional · keep it soft</div>
+              </div>
+              {selectedPlushie && <div style={{ marginLeft:'auto' }}><PlushieCapsule plushie={selectedPlushie} size={38} idle={false} /></div>}
+            </div>
+            <textarea value={message} onChange={e => setMessage(e.target.value)}
+              placeholder="a tiny feeling for everyone here…" maxLength={140}
+              style={{ width:'100%', height:100, padding:'12px 14px', background:'#FFF9F5', border:'2px solid rgba(217,138,161,0.22)', borderRadius:16, fontFamily:'Caveat', fontSize:17, color:'var(--ink)', outline:'none', resize:'none', lineHeight:1.5, marginBottom:6 }} />
+            <div style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-faint)', textAlign:'right', marginBottom:12 }}>{message.length}/140</div>
+
+            {/* anonymous toggle */}
+            <button onClick={() => setAnonymous(a => !a)} style={{
+              width:'100%', padding:'11px 14px', marginBottom:14,
+              background: anonymous ? 'rgba(200,184,232,0.18)' : 'rgba(255,255,255,0.65)',
+              border:`2px solid ${anonymous ? '#C8B8E8' : 'rgba(74,59,54,0.1)'}`,
+              borderRadius:14, cursor:'pointer', display:'flex', alignItems:'center', gap:10,
+            }}>
+              <span style={{ fontSize:18 }}>{anonymous ? '🎭' : '🧸'}</span>
+              <div style={{ flex:1, textAlign:'left' }}>
+                <div style={{ fontFamily:'Fredoka', fontWeight:600, fontSize:14, color:'var(--ink)' }}>
+                  {anonymous ? 'anonymous mode on' : 'show your name'}
+                </div>
+                <div style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-soft)' }}>
+                  {anonymous ? `"someone in ${circleName} 💌"` : `shows as "${myDisplayName}"`}
+                </div>
+              </div>
+              <div style={{ width:36, height:20, borderRadius:10, background: anonymous ? '#C8B8E8' : 'rgba(74,59,54,0.12)', position:'relative', transition:'background 0.2s' }}>
+                <div style={{ position:'absolute', top:2, width:16, height:16, borderRadius:8, background:'#fff', left: anonymous ? 18 : 2, transition:'left 0.2s', boxShadow:'0 1px 3px rgba(74,59,54,0.2)' }} />
+              </div>
+            </button>
+
+            <PlushButton variant="pink" full size="lg" disabled={sending} onClick={handleSend}>
+              {sending ? 'leaving it on the shelf…' : 'leave on shared shelf 🧸'}
+            </PlushButton>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// CIRCLE ROOM — the shared plushie world
+// ───────────────────────────────────────────────────────────
+function CircleRoomScreen({ circleId, myUid, myProfile, onBack }) {
+  const { circle, shelf, notes, react, leaveNote } = useCircleRoom(circleId, myUid);
+  const [activeTab, setActiveTab] = React.useState('shelf');
+  const [showSend, setShowSend] = React.useState(false);
+  const [showNote, setShowNote] = React.useState(false);
+  const [noteText, setNoteText] = React.useState('');
+  const [sendingNote, setSendingNote] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopyInvite = async () => {
+    try { await navigator.clipboard.writeText(circle.inviteCode); } catch (e) {}
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
+  };
+
+  const handleSubmitNote = async () => {
+    if (!noteText.trim() || sendingNote) return;
+    setSendingNote(true);
+    try { await leaveNote(noteText.trim()); setNoteText(''); setShowNote(false); }
+    catch (e) {}
+    setSendingNote(false);
+  };
+
+  if (circle === undefined) return (
+    <div style={{ padding:'0 0 120px', minHeight:'100%' }}>
+      <TopBar title="loading…" left={<RoundBtn onClick={onBack}>‹</RoundBtn>} />
+      <div style={{ textAlign:'center', padding:52, fontFamily:'Caveat', fontSize:18, color:'var(--ink-soft)' }}>stepping inside… 🌸</div>
+    </div>
+  );
+  if (!circle) return (
+    <div style={{ padding:'0 0 120px', minHeight:'100%' }}>
+      <TopBar title="circle not found" left={<RoundBtn onClick={onBack}>‹</RoundBtn>} />
+    </div>
+  );
+
+  const t = CIRCLE_THEMES[circle.theme] || CIRCLE_THEMES.rose;
+  const memberCount = (circle.memberUids || []).length;
+  const avatarColors = ['#FFE6EE','#F3E6F7','#FFD6C2','#E8D9CF','#C7DDB7'];
+  const nightMode = circle.theme === 'night';
+
+  return (
+    <div style={{ padding:'0 0 120px', minHeight:'100%', background: nightMode ? '#1A1230' : 'transparent', transition:'background 0.4s' }}>
+      <TopBar
+        title={circle.name}
+        subtitle={`${memberCount} ${memberCount === 1 ? 'keeper' : 'keepers'} inside`}
+        left={<RoundBtn onClick={onBack}>‹</RoundBtn>}
+        right={<RoundBtn onClick={handleCopyInvite} title="copy invite code">{copied ? '✓' : '🔗'}</RoundBtn>}
+      />
+
+      {/* Room header card */}
+      <div style={{ padding:'4px 16px 14px' }}>
+        <div style={{ borderRadius:24, padding:'16px 18px', background: t.bg, boxShadow:'var(--shadow-card)', border:'1px solid rgba(255,255,255,0.7)', position:'relative', overflow:'hidden' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:56, height:56, borderRadius:28, flexShrink:0, background:'#fff', fontSize:30, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 4px 14px ${t.accent}55` }}>{t.emoji}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:18, color: nightMode ? t.text : 'var(--ink)' }}>{circle.name}</div>
+              <div style={{ display:'flex', alignItems:'center', marginTop:6, gap:5 }}>
+                <div style={{ display:'flex' }}>
+                  {(circle.memberUids || []).slice(0, 5).map((uid, i) => (
+                    <div key={uid} style={{
+                      width:22, height:22, borderRadius:11,
+                      background: uid === myUid ? t.accent : avatarColors[i % 5],
+                      border:'2px solid #fff', marginLeft: i ? -7 : 0,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:10, fontFamily:'Fredoka', fontWeight:700, color: uid === myUid ? '#fff' : t.text,
+                      boxShadow:'0 1px 3px rgba(74,59,54,0.12)',
+                    }}>{uid === myUid ? '✿' : '·'}</div>
+                  ))}
+                  {memberCount > 5 && (
+                    <div style={{ width:22, height:22, borderRadius:11, background:'rgba(255,255,255,0.7)', border:'2px solid #fff', marginLeft:-7, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Inter', fontSize:9, color:'var(--ink-soft)' }}>+{memberCount-5}</div>
+                  )}
+                </div>
+                <span style={{ fontFamily:'Inter', fontSize:11, color: nightMode ? t.text : 'var(--ink-soft)' }}>{memberCount} keeper{memberCount !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          </div>
+          {/* invite strip */}
+          <div style={{ marginTop:12, padding:'8px 12px', background:'rgba(255,255,255,0.55)', borderRadius:12, display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-soft)', flex:1 }}>invite code</span>
+            <span style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:16, color: t.text, letterSpacing:'0.14em' }}>{circle.inviteCode}</span>
+            <button onClick={handleCopyInvite} style={{ padding:'3px 10px', borderRadius:8, background: t.accent, border:'none', cursor:'pointer', fontFamily:'Fredoka', fontWeight:600, fontSize:12, color:'#fff' }}>
+              {copied ? '✓' : 'copy'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab selector */}
+      <div style={{ padding:'0 16px 14px', display:'flex', gap:8 }}>
+        {[['shelf','🧸','shared shelf'],['notes','💌','notes board']].map(([tab, emoji, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            flex:1, padding:'10px 8px',
+            background: activeTab === tab ? t.accent : 'rgba(255,255,255,0.62)',
+            border:`1.5px solid ${activeTab === tab ? t.accent : 'rgba(255,255,255,0.45)'}`,
+            borderRadius:16, cursor:'pointer',
+            fontFamily:'Fredoka', fontWeight:600, fontSize:14,
+            color: activeTab === tab ? '#fff' : (nightMode ? t.text : 'var(--ink-soft)'),
+            transition:'all 0.2s',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+          }}>
+            <span>{emoji}</span> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* SHELF TAB */}
+      {activeTab === 'shelf' && (
+        <div style={{ padding:'0 16px' }}>
+          <button onClick={() => setShowSend(true)} style={{
+            width:'100%', marginBottom:14, padding:'13px 16px',
+            background:'linear-gradient(160deg,#F2A5BA 0%,#D98AA1 100%)',
+            border:'none', borderRadius:18, cursor:'pointer',
+            color:'#fff', fontFamily:'Fredoka', fontWeight:600, fontSize:15,
+            boxShadow:'0 6px 16px rgba(217,138,161,0.35)',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          }}>
+            <span>🧸</span> leave a plushie
+          </button>
+          {shelf.length === 0 ? (
+            <div style={{ background:'rgba(255,255,255,0.45)', border:'2px dashed rgba(74,59,54,0.1)', borderRadius:22, padding:'34px 20px', textAlign:'center' }}>
+              <div style={{ fontSize:34, marginBottom:8 }}>🌱</div>
+              <div style={{ fontFamily:'Caveat', fontSize:17, color: nightMode ? t.text : 'var(--ink-soft)' }}>the shelf is empty · be the first to leave something</div>
+            </div>
+          ) : (
+            <div style={{
+              background:'linear-gradient(180deg,#FFF6F0 0%,#FBEAF0 100%)',
+              borderRadius:22, padding:14,
+              border:'1px solid rgba(255,255,255,0.7)',
+              boxShadow:'inset 0 2px 6px rgba(198,156,132,0.1), var(--shadow-card)',
+              backgroundImage:'radial-gradient(circle at 10px 10px, rgba(217,138,161,0.1) 1.5px, transparent 2px)',
+              backgroundSize:'18px 18px',
+            }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
+                {shelf.map((item, i) => {
+                  const p = PLUSHIE_BY_ID[item.plushie];
+                  if (!p) return null;
+                  const tilt = [-3,2,-1,3,-2,1][i % 6];
+                  const senderLabel = item.anonymous ? `someone in ${circle.name} 💌` : (item.senderName || 'someone');
+                  return (
+                    <div key={item.id} style={{
+                      background:'#fff', borderRadius:16, padding:'10px 8px 8px',
+                      border:'1px solid rgba(255,255,255,0.7)',
+                      boxShadow:'0 4px 10px rgba(198,156,132,0.15)',
+                      transform:`rotate(${tilt}deg)`, position:'relative', textAlign:'center',
+                    }}>
+                      <Tape width={28} rotate={tilt * -3} style={{ position:'absolute', top:-8, left:'50%', marginLeft:-14 }} />
+                      <PlushieCapsule plushie={p} size={40} idle={false} />
+                      <div style={{ fontFamily:'Caveat', fontSize:11, color:'var(--ink-soft)', marginTop:3, lineHeight:1.2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{senderLabel}</div>
+                      {item.message ? (
+                        <div style={{ fontFamily:'Caveat', fontSize:10, color:'var(--ink-faint)', marginTop:2, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{item.message}</div>
+                      ) : null}
+                      {/* reactions */}
+                      <div style={{ display:'flex', justifyContent:'center', gap:2, marginTop:5, flexWrap:'wrap' }}>
+                        {['🩷','✨','🥺'].map(emoji => {
+                          const uids = item.reactions?.[emoji] || [];
+                          const active = uids.includes(myUid);
+                          return (
+                            <button key={emoji} onClick={() => react(item.id, emoji)} style={{
+                              padding:'1px 5px', borderRadius:8,
+                              background: active ? `${t.accent}38` : 'rgba(255,255,255,0.7)',
+                              border:`1px solid ${active ? t.accent : 'rgba(217,138,161,0.2)'}`,
+                              cursor:'pointer', fontSize:10,
+                            }}>
+                              {emoji}{uids.length > 0 ? ` ${uids.length}` : ''}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NOTES TAB */}
+      {activeTab === 'notes' && (
+        <div style={{ padding:'0 16px' }}>
+          <button onClick={() => setShowNote(true)} style={{
+            width:'100%', marginBottom:14, padding:'13px 16px',
+            background:'linear-gradient(160deg,#C8B8E8 0%,#A89CC8 100%)',
+            border:'none', borderRadius:18, cursor:'pointer',
+            color:'#fff', fontFamily:'Fredoka', fontWeight:600, fontSize:15,
+            boxShadow:'0 6px 16px rgba(168,130,214,0.3)',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          }}>
+            <span>💌</span> leave an anonymous note
+          </button>
+          {notes.length === 0 ? (
+            <div style={{ background:'rgba(255,255,255,0.45)', border:'2px dashed rgba(74,59,54,0.1)', borderRadius:22, padding:'34px 20px', textAlign:'center' }}>
+              <div style={{ fontSize:34, marginBottom:8 }}>🕊️</div>
+              <div style={{ fontFamily:'Caveat', fontSize:17, color: nightMode ? t.text : 'var(--ink-soft)' }}>no notes yet · leave something soft</div>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {notes.map((note, i) => {
+                const tilt = [-1.5,1,-0.5,1.5,-1,0.5][i % 6];
+                return (
+                  <div key={note.id} style={{ background:'#fff', borderRadius:18, padding:'16px 16px 12px', border:'1px solid rgba(255,255,255,0.8)', boxShadow:'0 4px 12px rgba(198,156,132,0.14)', transform:`rotate(${tilt}deg)`, position:'relative' }}>
+                    <Tape width={24} rotate={tilt * -2} style={{ position:'absolute', top:-7, left:'50%', marginLeft:-12 }} />
+                    <div style={{ fontFamily:'Caveat', fontSize:17, color:'var(--ink)', lineHeight:1.45 }}>{note.text}</div>
+                    <div style={{ fontFamily:'Inter', fontSize:10, color:'var(--ink-faint)', marginTop:7 }}>someone in {circle.name} 💌</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Send plushie bottom sheet */}
+      {showSend && (
+        <CircleSendPlushieSheet
+          circleId={circleId} circleName={circle.name}
+          myUid={myUid} myDisplayName={myProfile?.displayName || 'someone'}
+          theme={t} onSent={() => setShowSend(false)} onCancel={() => setShowSend(false)}
+        />
+      )}
+
+      {/* Leave note bottom sheet */}
+      {showNote && (
+        <div style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(74,59,54,0.42)', display:'flex', alignItems:'flex-end' }} onClick={() => setShowNote(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ width:'100%', background:'#fff', borderRadius:'28px 28px 0 0', padding:'24px 20px 44px', boxShadow:'0 -8px 32px rgba(74,59,54,0.15)' }}>
+            <div style={{ width:40, height:4, borderRadius:2, background:'rgba(74,59,54,0.13)', margin:'0 auto 20px' }} />
+            <div style={{ fontFamily:'Fredoka', fontWeight:700, fontSize:18, color:'var(--ink)', marginBottom:4 }}>leave a note 💌</div>
+            <div style={{ fontFamily:'Caveat', fontSize:15, color:'var(--ink-soft)', marginBottom:14 }}>anonymous · only people in {circle.name} can read this</div>
+            <textarea value={noteText} onChange={e => setNoteText(e.target.value)}
+              placeholder="thinking of you all softly…" maxLength={200} autoFocus
+              style={{ width:'100%', height:120, padding:'12px 14px', background:'#FFF9F5', border:'2px solid rgba(200,184,232,0.35)', borderRadius:16, fontFamily:'Caveat', fontSize:17, color:'var(--ink)', outline:'none', resize:'none', lineHeight:1.5 }} />
+            <div style={{ fontFamily:'Inter', fontSize:11, color:'var(--ink-faint)', textAlign:'right', marginBottom:14 }}>{noteText.length}/200</div>
+            <PlushButton variant="lav" full size="lg" disabled={!noteText.trim() || sendingNote} onClick={handleSubmitNote}>
+              {sendingNote ? 'leaving it softly…' : 'leave this note 💌'}
+            </PlushButton>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── LEGACY placeholder — kept so old screen=circle refs compile ───────────
 function CircleScreen({ circle, onBack, onLeavePlushie, onOpenWallItem }) {
   if (!circle) return null;
   return (

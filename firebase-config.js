@@ -1,8 +1,5 @@
-// firebase-config.js — Firebase Firestore setup for dear plushie!
-// Initialize Firebase and Firestore database
+// firebase-config.js — Firebase Firestore + Auth setup for dear plushie!
 
-// ⚠️ IMPORTANT: Replace with your own Firebase config
-// Get this from: Firebase Console → Project Settings → Web App
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAXIxJ6--uEx6yepoYrJSBl87eppFfj4nU",
   authDomain: "dear-plushie.firebaseapp.com",
@@ -12,35 +9,22 @@ const FIREBASE_CONFIG = {
   appId: "1:234347046572:web:68ace8429de5500955a109"
 };
 
-// Initialize Firebase (using CDN, so global firebase object exists)
-// Assumes firebase SDK is loaded in HTML
-
 let db = null;
 
 async function initializeFirebase() {
   if (db) return db;
-  
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    console.log('✓ Firebase initialized');
-    return db;
-  } catch (e) {
-    console.error('Firebase init failed:', e);
-    return null;
-  }
+  try { firebase.initializeApp(FIREBASE_CONFIG); } catch (e) { /* already init */ }
+  db = firebase.firestore();
+  return db;
 }
 
 // ──────────────────────────────────────────────────────
-// INBOX OPERATIONS — save/load gifts
+// INBOX OPERATIONS
 // ──────────────────────────────────────────────────────
 
 async function saveGiftToInbox(userId, gift) {
   if (!db) await initializeFirebase();
-  if (!db) throw new Error('Firebase not initialized');
-  
-  const inboxRef = db.collection('users').doc(userId).collection('inbox');
-  const docRef = await inboxRef.add({
+  const ref = await db.collection('users').doc(userId).collection('inbox').add({
     plushie: gift.plushie,
     message: gift.message,
     from: gift.from,
@@ -48,108 +32,158 @@ async function saveGiftToInbox(userId, gift) {
     opened: gift.opened || false,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
-  
-  return docRef.id;
+  return ref.id;
 }
 
 async function loadInboxForUser(userId) {
   if (!db) await initializeFirebase();
-  if (!db) throw new Error('Firebase not initialized');
-  
-  const snapshot = await db
-    .collection('users')
-    .doc(userId)
-    .collection('inbox')
-    .orderBy('createdAt', 'desc')
-    .get();
-  
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  const snap = await db.collection('users').doc(userId).collection('inbox')
+    .orderBy('createdAt', 'desc').get();
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 async function markGiftAsOpened(userId, giftId) {
   if (!db) await initializeFirebase();
-  if (!db) throw new Error('Firebase not initialized');
-  
-  await db
-    .collection('users')
-    .doc(userId)
-    .collection('inbox')
-    .doc(giftId)
-    .update({ opened: true });
+  await db.collection('users').doc(userId).collection('inbox').doc(giftId).update({ opened: true });
 }
 
 async function deleteGift(userId, giftId) {
   if (!db) await initializeFirebase();
-  if (!db) throw new Error('Firebase not initialized');
-  
-  await db
-    .collection('users')
-    .doc(userId)
-    .collection('inbox')
-    .doc(giftId)
-    .delete();
+  await db.collection('users').doc(userId).collection('inbox').doc(giftId).delete();
 }
-
-// ──────────────────────────────────────────────────────
-// USER OPERATIONS
-// ──────────────────────────────────────────────────────
-
-async function createOrGetUser(userId, userData = {}) {
-  if (!db) await initializeFirebase();
-  if (!db) throw new Error('Firebase not initialized');
-  
-  const userRef = db.collection('users').doc(userId);
-  const doc = await userRef.get();
-  
-  if (doc.exists) {
-    return doc.data();
-  }
-  
-  const newUserData = {
-    userId,
-    username: userData.username || 'anonymous',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    ...userData,
-  };
-  
-  await userRef.set(newUserData);
-  return newUserData;
-}
-
-// ──────────────────────────────────────────────────────
-// REALTIME LISTENERS (optional)
-// ──────────────────────────────────────────────────────
 
 function subscribeToInbox(userId, onUpdate) {
-  if (!db) {
-    console.error('Firebase not initialized');
-    return () => {};
-  }
-  
-  return db
-    .collection('users')
-    .doc(userId)
-    .collection('inbox')
+  if (!db) { console.error('Firebase not initialized'); return () => {}; }
+  return db.collection('users').doc(userId).collection('inbox')
     .orderBy('createdAt', 'desc')
-    .onSnapshot(snapshot => {
-      const inbox = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      onUpdate(inbox);
-    });
+    .onSnapshot(snap => onUpdate(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
 }
 
-// Expose for use in React
+// ──────────────────────────────────────────────────────
+// PROFILE OPERATIONS
+// ──────────────────────────────────────────────────────
+
+function generateShelfCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+async function isUsernameAvailable(username) {
+  if (!db) await initializeFirebase();
+  const doc = await db.collection('usernames').doc(username.toLowerCase()).get();
+  return !doc.exists;
+}
+
+async function createProfile(uid, { displayName, username }) {
+  if (!db) await initializeFirebase();
+  const uname = username.toLowerCase();
+
+  const usernameDoc = await db.collection('usernames').doc(uname).get();
+  if (usernameDoc.exists) throw new Error('username taken');
+
+  let shelfCode = '';
+  for (let i = 0; i < 10; i++) {
+    const c = generateShelfCode();
+    const d = await db.collection('shelfCodes').doc(c).get();
+    if (!d.exists) { shelfCode = c; break; }
+  }
+  if (!shelfCode) throw new Error('could not generate shelf code · try again');
+
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const profileData = {
+    uid, displayName, username: uname, shelfCode,
+    bio: '', avatarUrl: '', setupCompleted: true,
+    createdAt: now, updatedAt: now,
+  };
+
+  const batch = db.batch();
+  batch.set(db.collection('profiles').doc(uid), profileData);
+  batch.set(db.collection('usernames').doc(uname), { uid });
+  batch.set(db.collection('shelfCodes').doc(shelfCode), { uid });
+  await batch.commit();
+
+  return { ...profileData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+}
+
+async function getProfile(uid) {
+  if (!db) await initializeFirebase();
+  const doc = await db.collection('profiles').doc(uid).get();
+  return doc.exists ? doc.data() : null;
+}
+
+async function getProfileByShelfCode(code) {
+  if (!db) await initializeFirebase();
+  const codeDoc = await db.collection('shelfCodes').doc(code.toUpperCase()).get();
+  if (!codeDoc.exists) return null;
+  return getProfile(codeDoc.data().uid);
+}
+
+async function getProfileByUsername(username) {
+  if (!db) await initializeFirebase();
+  const doc = await db.collection('usernames').doc(username.toLowerCase()).get();
+  if (!doc.exists) return null;
+  return getProfile(doc.data().uid);
+}
+
+async function updateProfile(uid, updates) {
+  if (!db) await initializeFirebase();
+  await db.collection('profiles').doc(uid).update({
+    ...updates,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+// ──────────────────────────────────────────────────────
+// FRIENDSHIP OPERATIONS
+// ──────────────────────────────────────────────────────
+
+async function addFriend(myUid, friendUid) {
+  if (!db) await initializeFirebase();
+  if (myUid === friendUid) throw new Error('self');
+
+  const existing = await db.collection('users').doc(myUid).collection('friends').doc(friendUid).get();
+  if (existing.exists) throw new Error('duplicate');
+
+  const friendProfile = await getProfile(friendUid);
+  if (!friendProfile) throw new Error('not found');
+
+  await db.collection('users').doc(myUid).collection('friends').doc(friendUid).set({
+    uid: friendUid,
+    displayName: friendProfile.displayName,
+    username: friendProfile.username,
+    shelfCode: friendProfile.shelfCode,
+    addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return friendProfile;
+}
+
+async function getFriends(uid) {
+  if (!db) await initializeFirebase();
+  const snap = await db.collection('users').doc(uid).collection('friends')
+    .orderBy('addedAt', 'desc').get();
+  return snap.docs.map(d => ({ ...d.data() }));
+}
+
+// ──────────────────────────────────────────────────────
+// EXPOSE
+// ──────────────────────────────────────────────────────
+
 window.firebaseDB = {
   init: initializeFirebase,
   saveGift: saveGiftToInbox,
   loadInbox: loadInboxForUser,
   markOpened: markGiftAsOpened,
   deleteGift,
-  createUser: createOrGetUser,
   subscribeInbox: subscribeToInbox,
+  createProfile,
+  getProfile,
+  getProfileByShelfCode,
+  getProfileByUsername,
+  updateProfile,
+  isUsernameAvailable,
+  addFriend,
+  getFriends,
 };

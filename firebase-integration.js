@@ -1,15 +1,13 @@
-// firebase-integration.js — Auth + Firestore hooks for dear plushie!
+// firebase-integration.js — Auth + Firestore React hooks for dear plushie!
 
-// ── Auth hook ──────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────
 function useFirebaseAuth() {
-  const [user, setUser] = React.useState(undefined); // undefined = still checking
+  const [user, setUser] = React.useState(undefined); // undefined = checking
 
   React.useEffect(() => {
     let unsub;
     window.firebaseDB.init().then(() => {
-      unsub = firebase.auth().onAuthStateChanged((u) => {
-        setUser(u || null);
-      });
+      unsub = firebase.auth().onAuthStateChanged(u => setUser(u || null));
     });
     return () => { if (unsub) unsub(); };
   }, []);
@@ -26,39 +24,68 @@ function useFirebaseAuth() {
   return { user, signIn, signOut };
 }
 
-// ── Inbox hook ─────────────────────────────────────────────
+// ── Profile ───────────────────────────────────────────
+function useProfile(uid) {
+  const [profile, setProfile] = React.useState(undefined); // undefined = loading
+
+  React.useEffect(() => {
+    if (!uid) { setProfile(null); return; }
+    window.firebaseDB.getProfile(uid)
+      .then(p => setProfile(p || null))
+      .catch(() => setProfile(null));
+  }, [uid]);
+
+  const createProfile = React.useCallback(async (data) => {
+    const p = await window.firebaseDB.createProfile(uid, data);
+    setProfile(p);
+    return p;
+  }, [uid]);
+
+  const updateProfile = React.useCallback(async (updates) => {
+    await window.firebaseDB.updateProfile(uid, updates);
+    setProfile(prev => ({ ...prev, ...updates }));
+  }, [uid]);
+
+  return { profile, createProfile, updateProfile };
+}
+
+// ── Friends ───────────────────────────────────────────
+function useFriends(uid) {
+  const [friends, setFriends] = React.useState([]);
+
+  React.useEffect(() => {
+    if (!uid) { setFriends([]); return; }
+    window.firebaseDB.getFriends(uid).then(setFriends).catch(() => setFriends([]));
+  }, [uid]);
+
+  const addFriend = React.useCallback(async (friendUid) => {
+    const fp = await window.firebaseDB.addFriend(uid, friendUid);
+    setFriends(prev => [{ uid: friendUid, ...fp }, ...prev]);
+    return fp;
+  }, [uid]);
+
+  return { friends, addFriend };
+}
+
+// ── Inbox ─────────────────────────────────────────────
 function useFirebaseInbox(userId) {
   const [inbox, setInbox] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
-    if (!userId) {
-      setInbox([]);
-      setLoading(false);
-      return;
-    }
-
-    const load = async () => {
+    if (!userId) { setInbox([]); setLoading(false); return; }
+    window.firebaseDB.init().then(async () => {
       try {
-        await window.firebaseDB.init();
-        const u = firebase.auth().currentUser;
-        await window.firebaseDB.createUser(userId, {
-          username: u?.displayName || 'soft friend',
-          email: u?.email || '',
-        });
         const items = await window.firebaseDB.loadInbox(userId);
         setInbox(items);
         setLoading(false);
       } catch (err) {
-        console.error('Inbox load error:', err);
         setInbox([]);
         setLoading(false);
         setError(err.message);
       }
-    };
-
-    load();
+    });
   }, [userId]);
 
   const addGift = React.useCallback(async (gift) => {
@@ -67,10 +94,7 @@ function useFirebaseInbox(userId) {
       const giftId = await window.firebaseDB.saveGift(userId, gift);
       setInbox(arr => [{ id: giftId, ...gift, createdAt: new Date().toISOString() }, ...arr]);
       return giftId;
-    } catch (err) {
-      console.error('Error saving gift:', err);
-      setError(err.message);
-    }
+    } catch (err) { setError(err.message); }
   }, [userId]);
 
   const openGift = React.useCallback(async (giftId) => {
@@ -78,9 +102,7 @@ function useFirebaseInbox(userId) {
     try {
       await window.firebaseDB.markOpened(userId, giftId);
       setInbox(arr => arr.map(item => item.id === giftId ? { ...item, opened: true } : item));
-    } catch (err) {
-      console.error('Error opening gift:', err);
-    }
+    } catch (err) { console.error('openGift error:', err); }
   }, [userId]);
 
   const removeGift = React.useCallback(async (giftId) => {
@@ -88,13 +110,13 @@ function useFirebaseInbox(userId) {
     try {
       await window.firebaseDB.deleteGift(userId, giftId);
       setInbox(arr => arr.filter(item => item.id !== giftId));
-    } catch (err) {
-      console.error('Error deleting gift:', err);
-    }
+    } catch (err) { console.error('removeGift error:', err); }
   }, [userId]);
 
   return { inbox, loading, error, addGift, openGift, removeGift };
 }
 
-window.useFirebaseAuth = useFirebaseAuth;
+window.useFirebaseAuth  = useFirebaseAuth;
+window.useProfile       = useProfile;
+window.useFriends       = useFriends;
 window.useFirebaseInbox = useFirebaseInbox;
